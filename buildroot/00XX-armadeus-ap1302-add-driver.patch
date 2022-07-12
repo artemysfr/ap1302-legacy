@@ -32,16 +32,18 @@ Index: buildroot/package/ap1302-driver/Config.in
 Index: buildroot/package/ap1302-driver/ap1302-driver.mk
 ===================================================================
 --- /dev/null	1970-01-01 00:00:00.000000000 +0000
-+++ buildroot/package/ap1302-driver/ap1302-driver.mk	2022-05-05 12:34:55.217499937 +0200
-@@ -0,0 +1,30 @@
++++ buildroot/package/ap1302-driver/ap1302-driver.mk	2022-07-12 17:50:21.053478976 +0200
+@@ -0,0 +1,33 @@
 +################################################################################
 +#
 +# ap1302-driver
 +#
 +################################################################################
 +
-+AP1302_DRIVER_VERSION = 97cc47cedbddadfd7074bae123b556db7065960f
-+AP1302_DRIVER_SITE = $(call github,Avnet,ap1302-driver,$(AP1302_DRIVER_VERSION))
++#AP1302_DRIVER_VERSION = 97cc47cedbddadfd7074bae123b556db7065960f
++#AP1302_DRIVER_SITE = $(call github,Avnet,ap1302-driver,$(AP1302_DRIVER_VERSION))
++AP1302_DRIVER_VERSION = 59ec9b50782525522de90f596892b6547db5848a
++AP1302_DRIVER_SITE = $(call github,artemysfr,ap1302-legacy,$(AP1302_DRIVER_VERSION))
 +AP1302_DRIVER_LICENSE = GPLv2
 +AP1302_DRIVER_LICENSE_FILES = LICENSE
 +
@@ -61,6 +63,7 @@ Index: buildroot/package/ap1302-driver/ap1302-driver.mk
 +
 +define AP1302_DRIVER_INSTALL_TARGET_CMDS
 +	$(MAKE) $(LINUX_MAKE_FLAGS) -C $(LINUX_DIR) M=$(@D) modules_install
++	$(INSTALL) -D -m 755 $(@D)/scripts/ap1302_regs.sh $(TARGET_DIR)/root/ap1302_regs.sh
 +endef
 +
 +$(eval $(generic-package))
