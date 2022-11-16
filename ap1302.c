@@ -485,6 +485,7 @@ struct ap1302_device {
 	enum ap1302_mode current_mode;
 	const struct ap1302_sensor_info *sensor_info;
 	struct ap1302_sensor sensors[2];
+
 	struct {
 		struct dentry *dir;
 		struct mutex lock;
@@ -538,7 +539,6 @@ static const struct ap1302_format_info supported_video_formats[] = {
 			 | AP1302_PREVIEW_OUT_FMT_FST_RGB_888,
 	},
 };
-
 
 static int ap1302_log_status(struct ap1302_device *ap1302);
 
@@ -1274,8 +1274,6 @@ static int ap1302_configure(struct ap1302_device *ap1302)
 	struct sensor_data *sensor = &ap1302->sdata;
 	enum ap1302_mode current_mode = sensor->streamcap.capturemode;
 
-	printk("--- %s %d\n", __func__, __LINE__);
-
 	ap1302_write(ap1302, AP1302_PREVIEW_HINF_CTRL,
 		     AP1302_PREVIEW_HINF_CTRL_SPOOF |
 		     AP1302_PREVIEW_HINF_CTRL_MIPI_LANES(data_lanes), &ret);
@@ -1530,7 +1528,7 @@ static int ap1302_ioctl_s_ctrl(struct v4l2_int_device *s, struct v4l2_control *c
 	struct ap1302_device *ap1302 = s->priv;
 //		container_of(ctrl->handler, struct ap1302_device, ctrls);
 
-	printk("--- %s %d (%d)\n", __func__, __LINE__, ctrl->id);
+	pr_debug("--- %s %d (%d)\n", __func__, __LINE__, ctrl->id);
 
 	switch (ctrl->id) {
 	case V4L2_CID_AUTO_N_PRESET_WHITE_BALANCE:
@@ -1878,7 +1876,7 @@ static int ap1302_s_stream(struct ap1302_device *ap1302, int enable)
 {
 	int ret;
 
-	printk("--- %s (%d %d)\n", __func__, __LINE__, enable);
+	pr_debug("--- %s (%d %d)\n", __func__, __LINE__, enable);
 	mutex_lock(&ap1302->lock);
 
 	if (enable) {
@@ -2908,7 +2906,7 @@ static int ap1302_ioctl_dev_init(struct v4l2_int_device *s)
 	struct ap1302_device *ap1302 = s->priv;
 	u32 mipi_reg, msec_wait4stable = 0;
 
-	printk("--- %s %d\n", __func__, __LINE__);
+	pr_info("--- %s %d\n", __func__, __LINE__);
 #if 0
 	ov5640_data.on = true;
 
@@ -2997,7 +2995,7 @@ static int ap1302_ioctl_g_parm(struct v4l2_int_device *s, struct v4l2_streamparm
 	struct v4l2_captureparm *cparm = &a->parm.capture;
 	int ret = 0;
 
-	printk("--- %s %d\n", __func__, __LINE__);
+	pr_info("--- %s %d\n", __func__, __LINE__);
 	switch (a->type) {
 	/* This is the only case currently handled. */
 	case V4L2_BUF_TYPE_VIDEO_CAPTURE:
@@ -3037,7 +3035,7 @@ static int ap1302_ioctl_s_parm(struct v4l2_int_device *s, struct v4l2_streamparm
 	u32 tgt_fps;	/* target frames per secound */
 	int ret = 0;
 
-	printk("--- %s %d (%d %d fps)\n", __func__, __LINE__, a->type, timeperframe->denominator);
+	pr_info("--- %s %d (%d %d fps)\n", __func__, __LINE__, a->type, timeperframe->denominator);
 
 	/* Make sure power on */
 /*	if (ap1302->standby_gpio) {
@@ -3119,7 +3117,7 @@ static int ap1302_ioctl_enum_fmt_cap(struct v4l2_int_device *s,
 {
 	struct ap1302_device *ap1302 = s->priv;
 
-	printk("--- %s %d\n", __func__, __LINE__);
+	pr_debug("--- %s (type: %d, index: %d) \n", __func__, fmt->type, fmt->index);
 	if (fmt->index > 2 /*ov5640_mode_MAX*/)
 		return -EINVAL;
 
@@ -3132,7 +3130,7 @@ static int ap1302_ioctl_g_fmt_cap(struct v4l2_int_device *s, struct v4l2_format 
 {
 	struct ap1302_device *ap1302 = s->priv;
 
-	printk("--- %s %d\n", __func__, __LINE__);
+	printk("--- %s (index: %d)\n", __func__, f->type);
 	f->fmt.pix = ap1302->sdata.pix;
 
 	return 0;
@@ -3155,7 +3153,7 @@ static int ap1302_ioctl_dev_exit(struct v4l2_int_device *s)
 	int ret;
 	struct ap1302_device *ap1302 = s->priv;
 
-	printk("--- %s %d\n", __func__, __LINE__);
+	pr_info("--- %s\n", __func__);
 
 	ret = ap1302_s_stream(ap1302, false);
 
@@ -3219,7 +3217,7 @@ static int ap1302_probe(struct i2c_client *client, const struct i2c_device_id *i
 	ap1302->dev = &client->dev;
 	ap1302->client = client;
 
-	dev_err(ap1302->dev, "+++ %s %d\n", __func__, __LINE__);
+	dev_err(ap1302->dev, "+++ %s 2022.11.08 15:00\n", __func__);
 
 	mutex_init(&ap1302->lock);
 
@@ -3266,15 +3264,10 @@ static int ap1302_probe(struct i2c_client *client, const struct i2c_device_id *i
 			goto error;
 	}
 
-	dev_err(ap1302->dev, "+++ %s %d\n", __func__, __LINE__);
-
-
-
 	ret = ap1302_hw_init(ap1302);
 	if (ret)
 		goto error;
 
-	dev_err(ap1302->dev, "+++ %s %d\n", __func__, __LINE__);
 	ap1302_debugfs_init(ap1302);
 
 	ap1302_int_device.priv = ap1302;
