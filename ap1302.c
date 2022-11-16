@@ -1523,6 +1523,15 @@ static int ap1302_set_auto_focus(struct ap1302_device *ap1302, s32 mode)
 	return ap1302_write(ap1302, AP1302_AF_CTRL, val, NULL);
 }
 
+/*!
+ * ioctl_s_ctrl - V4L2 sensor interface handler for VIDIOC_S_CTRL ioctl
+ * @s: pointer to standard V4L2 device structure
+ * @vc: standard V4L2 VIDIOC_S_CTRL ioctl structure
+ *
+ * If the requested control is supported, sets the control's current
+ * value in HW (and updates the video_control[] array).  Otherwise,
+ * returns -EINVAL if the control is not supported.
+ */
 static int ap1302_ioctl_s_ctrl(struct v4l2_int_device *s, struct v4l2_control *ctrl)
 {
 	struct ap1302_device *ap1302 = s->priv;
@@ -1581,6 +1590,31 @@ static int ap1302_ioctl_s_ctrl(struct v4l2_int_device *s, struct v4l2_control *c
 		return -EINVAL;
 	}
 }
+
+/*!
+ * ioctl_enum_framesizes - V4L2 sensor interface handler for
+ *			   VIDIOC_ENUM_FRAMESIZES ioctl
+ * @s: pointer to standard V4L2 device structure
+ * @fsize: standard V4L2 VIDIOC_ENUM_FRAMESIZES ioctl structure
+ *
+ * Return 0 if successful, otherwise -EINVAL.
+ */
+static int ap1302_ioctl_enum_framesizes(struct v4l2_int_device *s,
+				 struct v4l2_frmsizeenum *fsize)
+{
+	struct ap1302_device *ap1302 = s->priv;
+
+	if (fsize->index > ap1302_mode_MAX)
+		return -EINVAL;
+
+	fsize->pixel_format = ap1302->sdata.pix.pixelformat;
+	fsize->type = V4L2_FRMSIZE_TYPE_DISCRETE;
+	fsize->discrete.width = ap1302_mode_info_data[fsize->index].width; //AP1302_DEFAULT_WIDTH;
+	fsize->discrete.height = ap1302_mode_info_data[fsize->index].height;  //AP1302_DEFAULT_HEIGHT;
+
+	return 0;
+}
+
 #if 0
 static const struct v4l2_ctrl_ops ap1302_ctrl_ops = {
 	.s_ctrl = ap1302_s_ctrl,
@@ -3118,7 +3152,7 @@ static int ap1302_ioctl_enum_fmt_cap(struct v4l2_int_device *s,
 	struct ap1302_device *ap1302 = s->priv;
 
 	pr_debug("--- %s (type: %d, index: %d) \n", __func__, fmt->type, fmt->index);
-	if (fmt->index > 2 /*ov5640_mode_MAX*/)
+	if (fmt->index > 1)
 		return -EINVAL;
 
 	fmt->pixelformat = ap1302->sdata.pix.pixelformat;
@@ -3182,9 +3216,9 @@ static struct v4l2_int_ioctl_desc ap1302_ioctl_desc[] = {
 	{vidioc_int_g_parm_num, (v4l2_int_ioctl_func *) ap1302_ioctl_g_parm},
 	{vidioc_int_s_parm_num, (v4l2_int_ioctl_func *) ap1302_ioctl_s_parm},/*
 	{vidioc_int_g_ctrl_num, (v4l2_int_ioctl_func *) ap1302_ioctl_g_ctrl},*/
-	{vidioc_int_s_ctrl_num, (v4l2_int_ioctl_func *) ap1302_ioctl_s_ctrl},/*
+	{vidioc_int_s_ctrl_num, (v4l2_int_ioctl_func *) ap1302_ioctl_s_ctrl},
 	{vidioc_int_enum_framesizes_num,
-				(v4l2_int_ioctl_func *) ap1302_ioctl_enum_framesizes},
+				(v4l2_int_ioctl_func *) ap1302_ioctl_enum_framesizes},/*
 	{vidioc_int_enum_frameintervals_num,
 			(v4l2_int_ioctl_func *) ap1302_ioctl_enum_frameintervals},*/
 	{ vidioc_int_g_chip_ident_num, (v4l2_int_ioctl_func *) ap1302_ioctl_g_chip_ident },
