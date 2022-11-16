@@ -3026,6 +3026,7 @@ err:
 static int ap1302_ioctl_g_parm(struct v4l2_int_device *s, struct v4l2_streamparm *a)
 {
 //	struct sensor_data *sensor = s->priv;
+	struct ap1302_device *ap1302 = s->priv;
 	struct v4l2_captureparm *cparm = &a->parm.capture;
 	int ret = 0;
 
@@ -3035,10 +3036,10 @@ static int ap1302_ioctl_g_parm(struct v4l2_int_device *s, struct v4l2_streamparm
 	case V4L2_BUF_TYPE_VIDEO_CAPTURE:
 		memset(a, 0, sizeof(*a));
 		a->type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
-		cparm->capability = V4L2_MODE_HIGHQUALITY | V4L2_CAP_TIMEPERFRAME; //sensor->streamcap.capability;
-		cparm->timeperframe.denominator = 30;
-		cparm->timeperframe.numerator = 1; // = sensor->streamcap.timeperframe;
-		cparm->capturemode = 0; //sensor->streamcap.capturemode;
+		cparm->capability = ap1302->sdata.streamcap.capability;
+		cparm->timeperframe.denominator = ap1302->sdata.streamcap.timeperframe.denominator;
+		cparm->timeperframe.numerator = ap1302->sdata.streamcap.timeperframe.numerator;
+		cparm = ap1302->sdata.streamcap.capturemode;
 		ret = 0;
 		break;
 
@@ -3064,9 +3065,12 @@ static int ap1302_ioctl_g_parm(struct v4l2_int_device *s, struct v4l2_streamparm
 
 static int ap1302_ioctl_s_parm(struct v4l2_int_device *s, struct v4l2_streamparm *a)
 {
-//	struct sensor_data *sensor = s->priv;
+	struct ap1302_device *ap1302 = s->priv;
+	struct sensor_data *sensor = &ap1302->sdata;
 	struct v4l2_fract *timeperframe = &a->parm.capture.timeperframe;
 	u32 tgt_fps;	/* target frames per secound */
+	enum ap1302_mode orig_mode;
+	enum ap1302_mode new_mode;
 	int ret = 0;
 
 	pr_info("--- %s %d (%d %d fps)\n", __func__, __LINE__, a->type, timeperframe->denominator);
@@ -3110,17 +3114,13 @@ static int ap1302_ioctl_s_parm(struct v4l2_int_device *s, struct v4l2_streamparm
 			pr_err(" The camera frame rate is not supported!\n");
 			return -EINVAL;
 		}
-
-		orig_mode = sensor->streamcap.capturemode;
-		ret = ov5640_init_mode(frame_rate,
-				(u32)a->parm.capture.capturemode, orig_mode);
-		if (ret < 0)
-			return ret;
-		sensor->streamcap.timeperframe = *timeperframe;
-		sensor->streamcap.capturemode =
-				(u32)a->parm.capture.capturemode;
-
 #endif
+		orig_mode = sensor->streamcap.capturemode;
+		new_mode = (u32)a->parm.capture.capturemode;
+		sensor->pix.width = ap1302_mode_info_data[new_mode].width;
+		sensor->pix.height = ap1302_mode_info_data[new_mode].height;
+		sensor->streamcap.timeperframe = *timeperframe;
+		sensor->streamcap.capturemode = new_mode;
 		break;
 
 	/* These are all the possible cases. */
