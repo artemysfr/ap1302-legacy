@@ -37,6 +37,43 @@
 
 #define DRIVER_NAME "ap1302"
 
+/**
+ * Allow forcing video mode
+ */
+static unsigned int AP1302_DEFAULT_MODE = 2;
+module_param_named(mode, AP1302_DEFAULT_MODE, int, 0444);
+MODULE_PARM_DESC(mode, "Video mode: 0 - 480p, 1 - 720p, 2 - 1080p (default)");
+
+#define AP1302_DEFAULT_FPS	30
+
+enum ap1302_mode {
+	ap1302_mode_MIN = 0,
+	ap1302_mode_480P_720_480 = 0,
+	ap1302_mode_720P_1280_720 = 1,
+	ap1302_mode_1080P_1920_1080 = 2,
+	ap1302_mode_MAX = 2,
+	ap1302_mode_INIT = 0xff,	/* only for sensor init */
+};
+
+enum ap1302_downsize_mode {
+	SUBSAMPLING = 1,
+};
+
+struct ap1302_mode_info {
+	enum ap1302_mode mode;
+	enum ap1302_downsize_mode dn_mode;
+	u32 width;
+	u32 height;
+/*	struct reg_value *init_data_ptr;
+	u32 init_data_size;*/
+};
+
+static struct ap1302_mode_info ap1302_mode_info_data[ap1302_mode_MAX + 1] = {
+	{ ap1302_mode_480P_720_480, SUBSAMPLING, 720, 480 },
+	{ ap1302_mode_720P_1280_720, SUBSAMPLING, 1280, 720 },
+	{ ap1302_mode_1080P_1920_1080, SUBSAMPLING, 1920, 1080 },
+};
+
 #define AP1302_FW_WINDOW_SIZE			0x2000
 #define AP1302_FW_WINDOW_OFFSET			0x8000
 
@@ -366,7 +403,6 @@
 #define AP1302_ADV_CAPTURE_A_FV_CNT		AP1302_REG_32BIT(0x00490040)
 
 struct ap1302_device;
-static struct sensor_data ap1302_data;
 
 enum {
 	AP1302_PAD_SINK_0,
@@ -446,6 +482,7 @@ struct ap1302_device {
 
 	//struct v4l2_ctrl_handler ctrls;
 
+	enum ap1302_mode current_mode;
 	const struct ap1302_sensor_info *sensor_info;
 	struct ap1302_sensor sensors[2];
 	struct {
@@ -475,15 +512,30 @@ module_param_named(fw, fw_name_param, charp, 0444);
 
 #define MAX_FW_LOAD_RETRIES 3
 
+/**
+ * Allow forcing video format at module loading
+ */
+static unsigned int AP1302_DEFAULT_FMT = 0;
+module_param_named(out_fmt, AP1302_DEFAULT_FMT, int, 0444);
+MODULE_PARM_DESC(out_fmt, "Output format: 0 - UYVY (default), 1 - YUV420, 2 - RGB565, 3 - RGB888");
+
 static const struct ap1302_format_info supported_video_formats[] = {
 	{
-		.code = 0, //MEDIA_BUS_FMT_UYVY8_1X16,
+		.code = V4L2_PIX_FMT_UYVY,
 		.out_fmt = AP1302_PREVIEW_OUT_FMT_FT_YUV_JFIF
 			 | AP1302_PREVIEW_OUT_FMT_FST_YUV_422,
 	}, {
-		.code = 0, //MEDIA_BUS_FMT_UYYVYY8_0_5X24,
+		.code = V4L2_PIX_FMT_YUV420,
 		.out_fmt = AP1302_PREVIEW_OUT_FMT_FT_YUV_JFIF
 			 | AP1302_PREVIEW_OUT_FMT_FST_YUV_420,
+	}, {
+		.code = V4L2_PIX_FMT_RGB565,
+		.out_fmt = AP1302_PREVIEW_OUT_FMT_FT_RGB
+			 | AP1302_PREVIEW_OUT_FMT_FST_RGB_565,
+	}, {
+		.code = V4L2_PIX_FMT_RGB24,
+		.out_fmt = AP1302_PREVIEW_OUT_FMT_FT_RGB
+			 | AP1302_PREVIEW_OUT_FMT_FST_RGB_888,
 	},
 };
 
@@ -1219,6 +1271,8 @@ static int ap1302_configure(struct ap1302_device *ap1302)
 //	const struct ap1302_format *format = &ap1302->formats[AP1302_PAD_SOURCE];
 	unsigned int data_lanes = 2 /*ap1302->bus_cfg.bus.mipi_csi2.num_data_lanes*/;
 	int ret = 0;
+	struct sensor_data *sensor = &ap1302->sdata;
+	enum ap1302_mode current_mode = sensor->streamcap.capturemode;
 
 	printk("--- %s %d\n", __func__, __LINE__);
 
@@ -1227,11 +1281,11 @@ static int ap1302_configure(struct ap1302_device *ap1302)
 		     AP1302_PREVIEW_HINF_CTRL_MIPI_LANES(data_lanes), &ret);
 
 	ap1302_write(ap1302, AP1302_PREVIEW_WIDTH,
-		     1920 /*format->format.width / ap1302->width_factor*/, &ret);
+		     ap1302_mode_info_data[current_mode].width, &ret);
 	ap1302_write(ap1302, AP1302_PREVIEW_HEIGHT,
-		     1080 /*format->format.height*/, &ret);
+		     ap1302_mode_info_data[current_mode].height, &ret);
 	ap1302_write(ap1302, AP1302_PREVIEW_OUT_FMT,
-		     supported_video_formats[0].out_fmt /* format->info->out_fmt*/, &ret);
+		     supported_video_formats[AP1302_DEFAULT_FMT].out_fmt /* format->info->out_fmt*/, &ret);
 
 	if (ret < 0)
 		return ret;
@@ -3192,13 +3246,13 @@ static int ap1302_probe(struct i2c_client *client, const struct i2c_device_id *i
 		goto error;
 
 	ap1302->sdata.i2c_client = client;
-	ap1302->sdata.pix.pixelformat = V4L2_PIX_FMT_UYVY;
-	ap1302->sdata.pix.width = 640;
-	ap1302->sdata.pix.height = 480;
+	ap1302->sdata.streamcap.capturemode = AP1302_DEFAULT_MODE;
+	ap1302->sdata.pix.pixelformat = supported_video_formats[AP1302_DEFAULT_FMT].code;
+	ap1302->sdata.pix.width = ap1302_mode_info_data[AP1302_DEFAULT_MODE].width;
+	ap1302->sdata.pix.height = ap1302_mode_info_data[AP1302_DEFAULT_MODE].height;
 	ap1302->sdata.streamcap.capability = V4L2_MODE_HIGHQUALITY |
 					   V4L2_CAP_TIMEPERFRAME;
-	ap1302->sdata.streamcap.capturemode = 0;
-	ap1302->sdata.streamcap.timeperframe.denominator = 30; /* DEFAULT_FPS */
+	ap1302->sdata.streamcap.timeperframe.denominator = AP1302_DEFAULT_FPS; /* DEFAULT_FPS */
 	ap1302->sdata.streamcap.timeperframe.numerator = 1;
 
 	for (i = 0; i < ARRAY_SIZE(ap1302->sensors); ++i) {
