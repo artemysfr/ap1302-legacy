@@ -1523,6 +1523,98 @@ static int ap1302_set_auto_focus(struct ap1302_device *ap1302, s32 mode)
 	return ap1302_write(ap1302, AP1302_AF_CTRL, val, NULL);
 }
 
+static int ap1302_s_stream(struct ap1302_device *ap1302, int enable);
+static int deserializer_reg_write(struct i2c_client *client, u8 reg, u8 val);
+
+static int ap1302_init_mode(struct ap1302_device *ap1302, /*enum ov5640_frame_rate frame_rate,*/ enum ap1302_mode mode, enum ap1302_mode orig_mode)
+{
+	void *mipi_csi2_info;
+	u32 mipi_reg/*, msec_wait4stable*/ = 0;
+	int ret = 0;
+	struct i2c_client *client = ap1302->client;
+	
+	pr_debug("--- %s (%d)\n", __func__, mode);
+
+	if ((mode > ap1302_mode_MAX || mode < ap1302_mode_MIN)
+		&& (mode != ap1302_mode_INIT)) {
+		pr_err("Wrong AP1302 mode detected!\n");
+		return -1;
+	}
+
+	mipi_csi2_info = mipi_csi2_get_info();
+
+	/* enable mipi csi2 */
+	if (mipi_csi2_info)
+		mipi_csi2_enable(mipi_csi2_info);
+	else {
+		printk(KERN_ERR "%s() in %s: Fail to get mipi_csi2_info!\n",
+		       __func__, __FILE__);
+		return -EPERM;
+	}
+
+	mipi_csi2_set_lanes(mipi_csi2_info);
+	if (ap1302->sdata.pix.pixelformat == V4L2_PIX_FMT_UYVY) {
+		mipi_csi2_set_datatype(mipi_csi2_info, MIPI_DT_YUV422);
+	} else if (ap1302->sdata.pix.pixelformat == V4L2_PIX_FMT_RGB565) {
+		mipi_csi2_set_datatype(mipi_csi2_info, MIPI_DT_RGB565);
+	} else {
+		pr_err("format is not supported by AP1302!\n");
+	}
+
+	//ap1302_hinf_shutdown(ap1302, true);
+	deserializer_reg_write(client, 0x20, 0x30); msleep(1);
+	if (mode == ap1302_mode_INIT) {
+		/*Only reset MIPI CSI2 HW at sensor initialize*/
+		mipi_csi2_reset(mipi_csi2_info);
+	}
+
+	ret = ap1302_s_stream(ap1302, true);
+//	ret = ov5640_init_mode(frame_rate, ov5640_mode_INIT, ov5640_mode_INIT);
+
+	//msleep(10000);
+	//ap1302_hinf_shutdown(ap1302, false);
+	deserializer_reg_write(client, 0x20, 0x20); msleep(1);
+
+	if (mipi_csi2_info) {
+		unsigned int i;
+
+		i = 0;
+
+		/* wait for mipi sensor ready */
+		mipi_reg = mipi_csi2_dphy_status(mipi_csi2_info);
+		while ((mipi_reg == 0x200) && (i < 10)) {
+			mipi_reg = mipi_csi2_dphy_status(mipi_csi2_info);
+			i++;
+			msleep(10);
+		}
+
+		if (i >= 10) {
+			pr_err("mipi csi2 can not receive sensor clk!\n");
+			return -1;
+		} else {
+			pr_debug("MIPI CSI2 clk stable\n");
+		}
+		i = 0;
+
+		/* wait for mipi stable */
+		mipi_reg = mipi_csi2_get_error1(mipi_csi2_info);
+		while ((mipi_reg != 0x0) && (i < 10)) {
+			mipi_reg = mipi_csi2_get_error1(mipi_csi2_info);
+			i++;
+			msleep(10);
+		}
+
+		if (i >= 10) {
+			pr_err("mipi csi2 can not reveive data correctly!\n");
+			return -1;
+		} else {
+			pr_err("--- mipi csi2 stable!\n");
+		}
+	}
+
+	return ret;
+}
+
 /*!
  * ioctl_s_ctrl - V4L2 sensor interface handler for VIDIOC_S_CTRL ioctl
  * @s: pointer to standard V4L2 device structure
@@ -2928,6 +3020,36 @@ static void ap1302_cleanup(struct ap1302_device *ap1302)
 	mutex_destroy(&ap1302->lock);
 }
 
+/* Write to mux register. Don't use i2c_transfer()/i2c_smbus_xfer()
+   for this as they will try to lock adapter a second time */
+static int deserializer_reg_write(struct i2c_client *client, u8 reg, u8 val)
+{
+        int ret = -ENODEV;
+
+        if (client->adapter->algo->master_xfer) {
+                struct i2c_msg msg;
+                char buf[2];
+
+                msg.addr = 0x30;
+                msg.flags = client->flags;
+                msg.len = 2;
+                buf[0] = reg;
+                buf[1] = val;
+                msg.buf = buf;
+                ret = __i2c_transfer(client->adapter, &msg, 1);
+        } else {
+                union i2c_smbus_data data;
+		data.byte = val;
+                ret = client->adapter->algo->smbus_xfer(client->adapter, 0x30,
+                                             client->flags,
+                                             I2C_SMBUS_WRITE,
+                                             reg, I2C_FUNC_SMBUS_BYTE_DATA, &data);
+        }
+
+        return ret;
+}
+
+
 static int ap1302_ioctl_dev_init(struct v4l2_int_device *s)
 {
 //	struct sensor_data *sensor = s->priv;
@@ -2936,9 +3058,7 @@ static int ap1302_ioctl_dev_init(struct v4l2_int_device *s)
 //	u32 tgt_fps;	/* target frames per secound */
 	int ret = 0;
 //	enum ov5640_frame_rate frame_rate;
-	void *mipi_csi2_info;
 	struct ap1302_device *ap1302 = s->priv;
-	u32 mipi_reg, msec_wait4stable = 0;
 
 	pr_info("--- %s %d\n", __func__, __LINE__);
 #if 0
@@ -2964,62 +3084,10 @@ static int ap1302_ioctl_dev_init(struct v4l2_int_device *s)
 		return -EINVAL; /* Only support 15fps or 30fps now. */
 #endif
 
-	mipi_csi2_info = mipi_csi2_get_info();
+	ret = ap1302_init_mode(ap1302, /* 30, */ap1302_mode_INIT, ap1302_mode_INIT);
+/////////////////////////////////////////////////////////::
 
-	/* enable mipi csi2 */
-	if (mipi_csi2_info)
-		mipi_csi2_enable(mipi_csi2_info);
-	else {
-		printk(KERN_ERR "%s() in %s: Fail to get mipi_csi2_info!\n",
-		       __func__, __FILE__);
-		return -EPERM;
-	}
-
-	mipi_csi2_set_lanes(mipi_csi2_info);
-	mipi_csi2_set_datatype(mipi_csi2_info, MIPI_DT_YUV422);
-
-	ret = ap1302_s_stream(ap1302, true);
-//	ret = ov5640_init_mode(frame_rate, ov5640_mode_INIT, ov5640_mode_INIT);
-
-	msleep(100);
-
-	if (mipi_csi2_info) {
-		unsigned int i;
-
-		i = 0;
-
-		/* wait for mipi sensor ready */
-		mipi_reg = mipi_csi2_dphy_status(mipi_csi2_info);
-		while ((mipi_reg == 0x200) && (i < 10)) {
-			mipi_reg = mipi_csi2_dphy_status(mipi_csi2_info);
-			i++;
-			msleep(10);
-		}
-
-		if (i >= 10) {
-			pr_err("mipi csi2 can not receive sensor clk!\n");
-//			return -1;
-		}
-
-		i = 0;
-
-		/* wait for mipi stable */
-		mipi_reg = mipi_csi2_get_error1(mipi_csi2_info);
-		while ((mipi_reg != 0x0) && (i < 10)) {
-			mipi_reg = mipi_csi2_get_error1(mipi_csi2_info);
-			i++;
-			msleep(10);
-		}
-
-		if (i >= 10) {
-			pr_err("mipi csi2 can not reveive data correctly!\n");
-//			return -1;
-		} else {
-			pr_err("--- mipi csi2 stable!\n");
-		}
-	}
-
-err:
+//err:
 	return ret;
 }
 
@@ -3117,6 +3185,7 @@ static int ap1302_ioctl_s_parm(struct v4l2_int_device *s, struct v4l2_streamparm
 #endif
 		orig_mode = sensor->streamcap.capturemode;
 		new_mode = (u32)a->parm.capture.capturemode;
+		printk("s_parm: mode: %d -> %d\n", orig_mode, new_mode);
 		sensor->pix.width = ap1302_mode_info_data[new_mode].width;
 		sensor->pix.height = ap1302_mode_info_data[new_mode].height;
 		sensor->streamcap.timeperframe = *timeperframe;
