@@ -4,7 +4,7 @@ function ap1302_check_driver()
 {
 	if [ ! -d /sys/kernel/debug/ap1302.0-003c/ ]; then
 		echo "Driver not loaded, exiting"
-		return 1
+		exit 1
 	fi
 }
 
@@ -37,7 +37,7 @@ function ap1302_read_and_set_reg()
 	if [ "$1" == "32" ]; then
 	        echo "0x04${2}" > /sys/kernel/debug/ap1302.0-003c/basic_addr
 	elif [ "$1" == "16" ]; then
-	        echo "0x02${2}" > /sys/kernel/debug/ap1302.0-003c/basic_addr
+	        echo "0x0200${2}" > /sys/kernel/debug/ap1302.0-003c/basic_addr
 	else
 		echo 0x0100$2 > /sys/kernel/debug/ap1302.0-003c/basic_addr
 	fi
@@ -50,8 +50,6 @@ function ap1302_dump_all_regs()
 	ap1302_check_driver
 
 	echo "Basic Preview Registers"
-	ap1302_read_reg 16 1186 "TRIGGER_CTRL"
-
         ap1302_read_reg 16 2000 "PREVIEW_WIDTH"
         ap1302_read_reg 16 2002 "PREVIEW_HEIGHT"
         ap1302_read_reg 16 2004 "PREVIEW_ROI_X0"
