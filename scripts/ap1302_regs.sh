@@ -53,13 +53,21 @@ function ap1302_dump_all_regs()
 
         ap1302_read_reg 16 2000 "PREVIEW_WIDTH"
         ap1302_read_reg 16 2002 "PREVIEW_HEIGHT"
-        ap1302_read_reg 16 2004
-        ap1302_read_reg 16 2006
-        ap1302_read_reg 16 2008
+        ap1302_read_reg 16 2004 "PREVIEW_ROI_X0"
+        ap1302_read_reg 16 2006 "PREVIEW_ROI_Y0"
+        ap1302_read_reg 16 2008 "PREVIEW_ROI_X1"
+        ap1302_read_reg 16 200a "PREVIEW_ROI_Y1"
+        ap1302_read_reg 16 200c "PREVIEW_ASPECT_FACTOR"
+        ap1302_read_reg 16 200e "PREVIEW_LOCK"
+        ap1302_read_reg 16 2010 "PREVIEW_ENABLE"
         ap1302_read_reg 16 2012 "PREVIEW_OUT_FORMAT"
+        ap1302_read_reg 16 2014 "PREVIEW_SENSOR_MODE"
         ap1302_read_reg 16 2016 "PREVIEW_MIPI_CTRL"
         ap1302_read_reg 16 2018 "PREVIEW_MIPI_II_CTRL"
         ap1302_read_reg 16 2030 "PREVIEW_HINF_CTRL"
+        ap1302_read_reg 16 2032 "PREVIEW_HINF_SPOOF_W"
+        ap1302_read_reg 16 2034 "PREVIEW_HINF_SPOOF_H"
+        ap1302_read_reg 16 2036 "PREVIEW_HINF_CUT"
         ap1302_read_reg 16 2050 "PREVIEW_DIV_CPU"
         ap1302_read_reg XX 002064 "PREVIEW_DIV_HINF_MIPI"
 
@@ -73,14 +81,19 @@ function ap1302_dump_all_regs()
         ap1302_read_reg 16 4012 "VIDEO_OUT_FORMAT"
 
 	echo
+        ap1302_read_reg 16 5002 "AE_CTRL"
+        ap1302_read_reg 16 5058 "AF_CTRL"
         ap1302_read_reg 16 5454 "SCENE_MODE"
 
-	echo
+	echo "Basic Control Registers"
         ap1302_read_reg 16 1000 "CTRL"
         ap1302_read_reg 16 1008 "ENABLE"
+        ap1302_read_reg 16 100c "ORIENTATION"
         ap1302_read_reg 16 1016 "SFX_MODE"
+	ap1302_read_reg 16 1186 "TRIGGER_CTRL"
 
-        ap1302_read_reg 16 0000 "CHIP_VERSION"
+	echo "Basic Info Registers"
+        ap1302_read_reg 16 0000 "CHIP_VERSION_REG"
         ap1302_read_reg 16 0002 "FRAME_CNT"
         ap1302_read_reg 16 0004 "MANUFACTURER_ID"
         ap1302_read_reg 16 0006 "ERROR"
