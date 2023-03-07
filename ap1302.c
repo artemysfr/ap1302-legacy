@@ -345,7 +345,7 @@ static struct ap1302_mode_info ap1302_mode_info_data[ap1302_mode_MAX + 1] = {
 #define AP1302_DMA_CTRL_MODE_SIP_PROBE		(6 << 0)
 
 #define AP1302_BRIGHTNESS			AP1302_REG_16BIT(0x7000)
-#define AP1302_CONTRAST			AP1302_REG_16BIT(0x7002)
+#define AP1302_CONTRAST				AP1302_REG_16BIT(0x7002)
 #define AP1302_SATURATION			AP1302_REG_16BIT(0x7006)
 #define AP1302_GAMMA				AP1302_REG_16BIT(0x700A)
 
@@ -1681,7 +1681,6 @@ static int ap1302_ioctl_s_ctrl(struct v4l2_int_device *s, struct v4l2_control *c
 
 	case V4L2_CID_FOCUS_AUTO:
 		return ap1302_set_auto_focus(ap1302, ctrl->value);
-
 
 	default:
 		return -EINVAL;
