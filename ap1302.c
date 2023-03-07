@@ -1190,7 +1190,7 @@ static int ap1302_power_on(struct ap1302_device *ap1302)
 	}
 
 	/* 5. De-assert RESET. */
-	gpiod_set_value(ap1302->reset_gpio, 0);
+	gpiod_set_value(ap1302->reset_gpio, 1);
 
 	/*
 	 * 6. Wait for the AP1302 to initialize. The datasheet doesn't specify
@@ -1204,7 +1204,7 @@ static int ap1302_power_on(struct ap1302_device *ap1302)
 static void ap1302_power_off(struct ap1302_device *ap1302)
 {
 	/* 1. Assert RESET. */
-	gpiod_set_value(ap1302->reset_gpio, 1);
+	gpiod_set_value(ap1302->reset_gpio, 0);
 
 	/* 2. Turn the clock off. */
 	clk_disable_unprepare(ap1302->clock);
@@ -2911,11 +2911,11 @@ static int ap1302_parse_of(struct ap1302_device *ap1302)
 
 	/* GPIOs */
 	ap1302->reset_gpio = devm_gpiod_get(ap1302->dev, "reset",
-					    GPIOD_OUT_HIGH);
+					    GPIOD_OUT_LOW);
 	if (IS_ERR(ap1302->reset_gpio)) {
 		dev_err(ap1302->dev, "Can't get reset GPIO: %ld\n",
 			PTR_ERR(ap1302->reset_gpio));
-//		return PTR_ERR(ap1302->reset_gpio);
+		return PTR_ERR(ap1302->reset_gpio);
 	}
 
 	ap1302->standby_gpio = devm_gpiod_get_optional(ap1302->dev, "standby",
