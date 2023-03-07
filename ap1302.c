@@ -479,6 +479,7 @@ struct ap1302_device {
 	//struct media_pad pads[AP1302_PAD_MAX];
 	struct ap1302_format formats[AP1302_PAD_MAX];
 	unsigned int width_factor;
+	bool streaming;
 
 	//struct v4l2_ctrl_handler ctrls;
 
@@ -1318,7 +1319,11 @@ static int ap1302_stall(struct ap1302_device *ap1302, bool stall)
 			     AP1302_ADV_IRQ_SYS_INTE_SIPS_FIFO_WRITE, &ret);
 		if (ret < 0)
 			return ret;
+
+		ap1302->streaming = false;
+		return 0;
 	} else {
+		ap1302->streaming = true;
 		return ap1302_write(ap1302, AP1302_SYS_START,
 				    AP1302_SYS_START_PLL_LOCK |
 				    AP1302_SYS_START_STALL_STATUS |
@@ -2000,10 +2005,15 @@ static int ap1302_get_selection(struct v4l2_subdev *sd,
 
 static int ap1302_s_stream(struct ap1302_device *ap1302, int enable)
 {
-	int ret;
+	int ret = 0;
 
 	pr_debug("--- %s (%d %d)\n", __func__, __LINE__, enable);
 	mutex_lock(&ap1302->lock);
+
+	if (enable == ap1302->streaming) {
+		pr_debug("--- %s: bypassing\n", __func__);
+		goto done;
+	}
 
 	if (enable) {
 		ret = ap1302_configure(ap1302);
