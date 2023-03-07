@@ -541,6 +541,131 @@ static const struct ap1302_format_info supported_video_formats[] = {
 	},
 };
 
+
+/* supported controls */
+/* This hasn't been fully implemented yet.
+ * This is how it should work, though. */
+static struct v4l2_queryctrl ap1302_qctrl[] = {
+	{
+		.id = V4L2_CID_AUTO_N_PRESET_WHITE_BALANCE,
+		.type = V4L2_CTRL_TYPE_INTEGER,
+		.name = "White Balance",
+		.minimum = 0,
+		.maximum = 0xffff,
+		.step = 1,
+		.default_value = 127,
+		.flags = 0,
+	}, {
+		.id = V4L2_CID_EXPOSURE,
+		.type = V4L2_CTRL_TYPE_INTEGER,
+		.name = "Exposure",
+		.minimum = 0,
+		.maximum = 0xffff,
+		.step = 1,
+		.default_value = 127,
+		.flags = 0,
+	}, {
+		.id = V4L2_CID_GAIN,
+		.type = V4L2_CTRL_TYPE_INTEGER,
+		.name = "Gain",
+		.minimum = 0,
+		.maximum = 0xffff,
+		.step = 1,
+		.default_value = 0x0100,
+		.flags = 0,
+	}, {
+		.id = V4L2_CID_BRIGHTNESS,
+		.type = V4L2_CTRL_TYPE_INTEGER,
+		.name = "Brightness",
+		.minimum = 0,
+		.maximum = 0xffff,
+		.step = 1,
+		.default_value = 127,
+		.flags = 0,
+	}, {
+		.id = V4L2_CID_GAMMA,
+		.type = V4L2_CTRL_TYPE_INTEGER,
+		.name = "Gamma",
+		.minimum = 0,
+		.maximum = 0xffff,
+		.step = 0x1,
+		.default_value = 0,
+		.flags = 0,
+	}, {
+		.id = V4L2_CID_CONTRAST,
+		.type = V4L2_CTRL_TYPE_INTEGER,
+		.name = "Contrast",
+		.minimum = 0,
+		.maximum = 0xffff,
+		.step = 0x1,
+		.default_value = 0,
+		.flags = 0,
+	}, {
+		.id = V4L2_CID_SATURATION,
+		.type = V4L2_CTRL_TYPE_INTEGER,
+		.name = "Saturation",
+		.minimum = 0,
+		.maximum = 0xffff,
+		.step = 0x1,
+		.default_value = 0x1000,
+		.flags = 0,
+	}, {
+		.id = V4L2_CID_FOCUS_AUTO,
+		.type = V4L2_CTRL_TYPE_INTEGER,
+		.name = "AutoFocus",
+		.minimum = 0,
+		.maximum = 0xffff,
+		.step = 0x1,
+		.default_value = 0x1181,
+		.flags = 0,
+	}, {
+		.id = V4L2_CID_ZOOM_ABSOLUTE,
+		.type = V4L2_CTRL_TYPE_INTEGER,
+		.name = "Zoom",
+		.minimum = 0,
+		.maximum = 0xffff,
+		.step = 0x1,
+		.default_value = 0x0100,
+		.flags = 0,
+	}, {
+		.id = V4L2_CID_COLORFX,
+		.type = V4L2_CTRL_TYPE_INTEGER,
+		.name = "ColorFX",
+		.minimum = 0,
+		.maximum = 0x11,
+		.step = 1,
+		.default_value = 0,
+		.flags = 0,
+	}, {
+		.id = V4L2_CID_SCENE_MODE,
+		.type = V4L2_CTRL_TYPE_INTEGER,
+		.name = "Scene Mode",
+		.minimum = 0,
+		.maximum = 0x0e,
+		.step = 1,
+		.default_value = 0,
+		.flags = 0,
+	}, {
+		.id = V4L2_CID_HFLIP,
+		.type = V4L2_CTRL_TYPE_BOOLEAN,
+		.name = "HFlip",
+//		.minimum = 0,
+//		.maximum = 0xffff,
+//		.step = 0x1,
+		.default_value = 0,
+		.flags = 0,
+	}, {
+		.id = V4L2_CID_VFLIP,
+		.type = V4L2_CTRL_TYPE_BOOLEAN,
+		.name = "VFlip",
+//		.minimum = 0,
+//		.maximum = 0xffff,
+//		.step = 0x1,
+		.default_value = 0,
+		.flags = 0,
+	}
+};
+
 static int ap1302_log_status(struct ap1302_device *ap1302);
 
 /* -----------------------------------------------------------------------------
@@ -1615,6 +1740,81 @@ static int ap1302_init_mode(struct ap1302_device *ap1302, /*enum ov5640_frame_ra
 		} else {
 			pr_err("--- mipi csi2 stable!\n");
 		}
+	}
+
+	return ret;
+}
+
+/*!
+ * ioctl_queryctrl - V4L2 sensor interface handler for VIDIOC_QUERYCTRL ioctl
+ * @s: pointer to standard V4L2 device structure
+ * @qc: standard V4L2 VIDIOC_QUERYCTRL ioctl structure
+ *
+ * If the requested control is supported, returns the control information
+ * from the video_control[] array.  Otherwise, returns -EINVAL if the
+ * control is not supported.
+ */
+static int ap1302_ioctl_queryctrl(struct v4l2_int_device *s, struct v4l2_queryctrl *qc)
+{
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(ap1302_qctrl); i++)
+		if (qc->id && qc->id == ap1302_qctrl[i].id) {
+			memcpy(qc, &(ap1302_qctrl[i]), sizeof(*qc));
+			return 0;
+		}
+
+	return -EINVAL;
+}
+
+/*!
+ * ioctl_g_ctrl - V4L2 sensor interface handler for VIDIOC_G_CTRL ioctl
+ * @s: pointer to standard V4L2 device structure
+ * @vc: standard V4L2 VIDIOC_G_CTRL ioctl structure
+ *
+ * If the requested control is supported, returns the control's current
+ * value from the video_control[] array.  Otherwise, returns -EINVAL
+ * if the control is not supported.
+ */
+static int ap1302_ioctl_g_ctrl(struct v4l2_int_device *s, struct v4l2_control *vc)
+{
+	struct ap1302_device *ap1302 = s->priv;
+	int ret = 0;
+
+//	printk("--- %s %d (%d)\n", __func__, __LINE__, vc->id);
+	switch (vc->id) {
+	case V4L2_CID_BRIGHTNESS:
+		ap1302_read(ap1302, AP1302_BRIGHTNESS, &(vc->value));
+		break;
+	case V4L2_CID_GAIN:
+		ap1302_read(ap1302, AP1302_AE_MANUAL_GAIN, &(vc->value));
+		break;
+	case V4L2_CID_CONTRAST:
+		ap1302_read(ap1302, AP1302_CONTRAST, &(vc->value));
+		break;
+	case V4L2_CID_SATURATION:
+		ap1302_read(ap1302, AP1302_SATURATION, &(vc->value));
+		break;
+	case V4L2_CID_FOCUS_AUTO:
+		ap1302_read(ap1302, AP1302_AF_CTRL, &(vc->value));
+		break;
+	case V4L2_CID_ZOOM_ABSOLUTE:
+		ap1302_read(ap1302, AP1302_DZ_TGT_FCT, &(vc->value));
+		break;
+	case V4L2_CID_EXPOSURE:
+		ap1302_read(ap1302, AP1302_AE_CTRL, &(vc->value));
+		break;
+	case V4L2_CID_GAMMA:
+		ap1302_read(ap1302, AP1302_GAMMA, &(vc->value));
+		break;
+	case V4L2_CID_COLORFX:
+		ap1302_read(ap1302, AP1302_SFX_MODE, &(vc->value));
+		break;
+	case V4L2_CID_SCENE_MODE:
+		ap1302_read(ap1302, AP1302_SCENE_CTRL, &(vc->value));
+		break;
+	default:
+		ret = -EINVAL;
 	}
 
 	return ret;
@@ -3292,8 +3492,9 @@ static struct v4l2_int_ioctl_desc ap1302_ioctl_desc[] = {
 				(v4l2_int_ioctl_func *) ap1302_ioctl_enum_fmt_cap},
 	{vidioc_int_g_fmt_cap_num, (v4l2_int_ioctl_func *) ap1302_ioctl_g_fmt_cap},
 	{vidioc_int_g_parm_num, (v4l2_int_ioctl_func *) ap1302_ioctl_g_parm},
-	{vidioc_int_s_parm_num, (v4l2_int_ioctl_func *) ap1302_ioctl_s_parm},/*
-	{vidioc_int_g_ctrl_num, (v4l2_int_ioctl_func *) ap1302_ioctl_g_ctrl},*/
+	{vidioc_int_s_parm_num, (v4l2_int_ioctl_func *) ap1302_ioctl_s_parm},
+	{vidioc_int_queryctrl_num, (v4l2_int_ioctl_func *) ap1302_ioctl_queryctrl},
+	{vidioc_int_g_ctrl_num, (v4l2_int_ioctl_func *) ap1302_ioctl_g_ctrl},
 	{vidioc_int_s_ctrl_num, (v4l2_int_ioctl_func *) ap1302_ioctl_s_ctrl},
 	{vidioc_int_enum_framesizes_num,
 				(v4l2_int_ioctl_func *) ap1302_ioctl_enum_framesizes},/*
