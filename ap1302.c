@@ -512,7 +512,7 @@ struct ap1302_firmware_header {
 static char *fw_name_param = NULL;
 module_param_named(fw, fw_name_param, charp, 0444);
 
-#define MAX_FW_LOAD_RETRIES 3
+#define MAX_FW_LOAD_RETRIES 1 //3
 
 /**
  * Allow forcing video format at module loading
@@ -2801,7 +2801,7 @@ static int ap1302_hw_init(struct ap1302_device *ap1302)
 		dev_err(ap1302->dev,
 			"Firmware load retries exceeded, aborting\n");
 		ret = -ETIMEDOUT;
-		goto error_power_sensors;
+//		goto error_power_sensors;
 	}
 
 	return 0;
