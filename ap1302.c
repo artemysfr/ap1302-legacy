@@ -523,7 +523,7 @@ MODULE_PARM_DESC(out_fmt, "Output format: 0 - UYVY (default), 1 - YUV420, 2 - RG
 static const struct ap1302_format_info supported_video_formats[] = {
 	{
 		.code = V4L2_PIX_FMT_UYVY,
-		.out_fmt = AP1302_PREVIEW_OUT_FMT_FT_YUV_JFIF
+		.out_fmt = AP1302_PREVIEW_OUT_FMT_FT_YUV
 			 | AP1302_PREVIEW_OUT_FMT_FST_YUV_422,
 	}, {
 		.code = V4L2_PIX_FMT_YUV420,
