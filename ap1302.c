@@ -3550,7 +3550,7 @@ static int ap1302_probe(struct i2c_client *client, const struct i2c_device_id *i
 	ap1302->dev = &client->dev;
 	ap1302->client = client;
 
-	dev_err(ap1302->dev, "+++ %s 2022.11.08 15:00\n", __func__);
+	dev_err(ap1302->dev, "+++ %s 2023.03.09 18:00\n", __func__);
 
 	mutex_init(&ap1302->lock);
 
@@ -3623,9 +3623,11 @@ error:
 
 static int ap1302_remove(struct i2c_client *client)
 {
-#if 0
+/*
 	struct v4l2_subdev *sd = i2c_get_clientdata(client);
 	struct ap1302_device *ap1302 = to_ap1302(sd);
+*/
+	struct ap1302_device *ap1302 = i2c_get_clientdata(client);
 
 	ap1302_debugfs_cleanup(ap1302);
 
@@ -3633,13 +3635,14 @@ static int ap1302_remove(struct i2c_client *client)
 
 	release_firmware(ap1302->fw);
 
+	v4l2_int_device_unregister(&ap1302_int_device);
+#if 0
 	v4l2_async_unregister_subdev(sd);
 	media_entity_cleanup(&sd->entity);
 
 	ap1302_ctrls_cleanup(ap1302);
-
-	ap1302_cleanup(ap1302);
 #endif
+	ap1302_cleanup(ap1302);
 
 	return 0;
 }
