@@ -3316,7 +3316,7 @@ static int ap1302_ioctl_g_parm(struct v4l2_int_device *s, struct v4l2_streamparm
 		cparm->capability = ap1302->sdata.streamcap.capability;
 		cparm->timeperframe.denominator = ap1302->sdata.streamcap.timeperframe.denominator;
 		cparm->timeperframe.numerator = ap1302->sdata.streamcap.timeperframe.numerator;
-		cparm = ap1302->sdata.streamcap.capturemode;
+		cparm->capturemode = ap1302->sdata.streamcap.capturemode;
 		ret = 0;
 		break;
 
@@ -3478,6 +3478,26 @@ static int ap1302_ioctl_dev_exit(struct v4l2_int_device *s)
 	return ret;
 }
 
+static int ap1302_ioctl_g_ifparm(struct v4l2_int_device *s, struct v4l2_ifparm *p)
+{
+        if (s == NULL) {
+                pr_err("   ERROR!! no slave device set!\n");
+                return -1;
+        }
+
+	/* use bt656 struct even it's not bt656 */
+        memset(p, 0, sizeof(*p));
+        p->u.bt656.clock_curr = 48000000;
+//        pr_debug("   clock_curr=mclk=%d\n", ov5640_data.mclk);
+        p->if_type = V4L2_IF_TYPE_BT656;
+        p->u.bt656.mode = V4L2_IF_TYPE_BT656_MODE_NOBT_8BIT;
+        p->u.bt656.clock_min = 48000000;
+        p->u.bt656.clock_max = 48000000;
+        p->u.bt656.bt_sync_correct = 1;  /* Indicate external vsync */
+
+        return 0;
+}
+
 /*!
  * This structure defines all the ioctls for this module and links them to the
  * enumeration.
@@ -3485,8 +3505,8 @@ static int ap1302_ioctl_dev_exit(struct v4l2_int_device *s)
 static struct v4l2_int_ioctl_desc ap1302_ioctl_desc[] = {
 	{ vidioc_int_dev_init_num, ap1302_ioctl_dev_init },
 	{ vidioc_int_dev_exit_num, ap1302_ioctl_dev_exit },
-/*	{vidioc_int_s_power_num, (v4l2_int_ioctl_func *) ap1302_ioctl_s_power},
-	{vidioc_int_g_ifparm_num, (v4l2_int_ioctl_func *) ap1302_ioctl_g_ifparm},
+/*	{vidioc_int_s_power_num, (v4l2_int_ioctl_func *) ap1302_ioctl_s_power},*/
+	{vidioc_int_g_ifparm_num, (v4l2_int_ioctl_func *) ap1302_ioctl_g_ifparm},/*
 	{vidioc_int_init_num, (v4l2_int_ioctl_func *) ap1302_ioctl_init},*/
 	{vidioc_int_enum_fmt_cap_num,
 				(v4l2_int_ioctl_func *) ap1302_ioctl_enum_fmt_cap},
